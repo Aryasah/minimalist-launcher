@@ -95,11 +95,10 @@ fun SelectHomeAppsScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(12.dp)
     ) {
-        TopAppBar(
-            title = { Text("Select home apps (max 5)", color = Color.White) },
-            actions = {
-                TextButton(onClick = { if (!saving) onClose() }) { Text("Close", color = Color.White) }
-            }
+        CommonTopBar(
+            title = "Select home apps (max 5)",
+            onClose = onClose,
+            useBackIcon = true
         )
 
         // Search bar + small hits count

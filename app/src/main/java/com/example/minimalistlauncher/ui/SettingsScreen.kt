@@ -53,18 +53,10 @@ fun SettingsScreen(
 
     // compact paddings and smaller text sizes
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        TopAppBar(
-            title = { Text("Settings", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium) },
-            navigationIcon = {
-                TextButton(onClick = onClose, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
-                    Text("Close", color = Color.White, fontSize = 13.sp)
-                }
-            },
-            actions = {
-                // small placeholder space for future actions
-            },
-            colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = Color.Transparent),
-            modifier = Modifier.height(48.dp)
+        CommonTopBar(
+            title = "Settings",
+            onClose = onClose,
+            useBackIcon = true
         )
 
         LazyColumn(
