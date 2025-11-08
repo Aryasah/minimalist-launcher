@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:alpha="1.0">
+    <!-- leaf outline -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2 C8,2 4,5.5 4,9.5 C4,14 8.5,18 12,20 C15.5,18 20,14 20,9.5 C20,5.5 16,2 12,2 zM12,18.7 C9,17.4 6,14.8 6,9.5 C6,6.2 8.9,3.5 12,3.5 C15.1,3.5 18,6.2 18,9.5 C18,14.8 15,17.4 12,18.7 z" />
+    <!-- small ascending bars (graph) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M8,15h1.5v3H8zM11,12.5h1.5v5H11zM14,9.5h1.5v8H14z" />
+</vector>
