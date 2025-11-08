@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.content.pm.ResolveInfo
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -49,7 +50,6 @@ import android.view.ViewGroup
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.foundation.shape.CircleShape
 
 data class AppInfo(val label: String, val pkg: String, val iconBitmap: ImageBitmap? = null)
@@ -100,9 +100,6 @@ class MainActivity : ComponentActivity() {
                         .sortedBy { it.label.lowercase() }
                 }
 
-                val whitelist by dataStore.whitelistFlow.collectAsState(initial = emptySet())
-                val persistedHomePkgs by dataStore.homeAppsFlow.collectAsState(initial = emptyList())
-
                 var showDrawer by remember { mutableStateOf(false) }
                 var showSettings by remember { mutableStateOf(false) }
                 var showFocusMode by remember { mutableStateOf(false) }
@@ -112,15 +109,32 @@ class MainActivity : ComponentActivity() {
 
                 BackHandler(enabled = !showDrawer && !showSettings && !showFocusMode && !showSelectHome) { /* consume */ }
 
-                val homeAppsOrdered: List<AppInfo> = remember(allApps, persistedHomePkgs, focusModeEnabled, whitelist) {
-                    if (focusModeEnabled) {
-                        val set = whitelist
-                        allApps.filter { set.contains(it.pkg) }
-                    } else {
-                        if (persistedHomePkgs.isNotEmpty()) {
-                            persistedHomePkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
+                // --- inside setContent { MinimalLauncherTheme { ... } } ---
+
+                val whitelist by dataStore.whitelistFlow.collectAsState(initial = emptySet())
+                val persistedHomePkgs by dataStore.homeAppsFlow.collectAsState(initial = emptyList())
+
+                // debug: log when persistedHomePkgs changes so we can see the DataStore update
+                LaunchedEffect(persistedHomePkgs) {
+                    Log.d("MainActivity", "persistedHomePkgs emitted: ${persistedHomePkgs.joinToString(",")}")
+                }
+
+                // Compute the home apps list as a derived state so recomposition reacts reliably to inputs.
+                // derivedStateOf produces a State whose value is recomputed when any snapshot read inside it changes.
+                val homeAppsOrdered by remember(allApps, persistedHomePkgs, focusModeEnabled, whitelist) {
+                    derivedStateOf {
+                        if (focusModeEnabled) {
+                            // only apps allowed by whitelist when focus mode enabled
+                            val set = whitelist
+                            allApps.filter { set.contains(it.pkg) }
                         } else {
-                            allApps.take(5)
+                            if (persistedHomePkgs.isNotEmpty()) {
+                                // preserve ordering from persistedHomePkgs
+                                persistedHomePkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
+                            } else {
+                                // fallback: first 5 apps alphabetically
+                                allApps.take(5)
+                            }
                         }
                     }
                 }
@@ -133,14 +147,24 @@ class MainActivity : ComponentActivity() {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             homeAppsOrdered.forEach { app ->
-                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).clickable { context.launchPackage(app.pkg) },
-                                    verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp)
+                                        .clickable { context.launchPackage(app.pkg) },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     AppRowIconLabel(context = context, app = app, iconPack = iconPack)
                                 }
                             }
 
                             if (homeAppsOrdered.isEmpty()) {
-                                Text("No apps to show. Edit home in Settings.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(vertical = 12.dp))
+                                Text(
+                                    "No apps to show. Edit home in Settings.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier.padding(vertical = 12.dp)
+                                )
                             }
                         }
                     }
@@ -149,8 +173,6 @@ class MainActivity : ComponentActivity() {
                         FloatingActionButton(onClick = { showFocusMode = true }, containerColor = MaterialTheme.colorScheme.primary) {
                             Icon(painter = painterResource(id = R.drawable.ic_focus), contentDescription = "Focus", tint = Color.White)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(onClick = { showSelectHome = true }) { Text("Edit Home", color = Color.White) }
                         Spacer(modifier = Modifier.height(6.dp))
                         TextButton(onClick = { showDrawer = true }) { Text("Apps", color = Color.White) }
                         Spacer(modifier = Modifier.height(6.dp))
@@ -169,7 +191,11 @@ class MainActivity : ComponentActivity() {
 
                     if (showSettings) {
                         Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
-                            SettingsScreen(apps = allApps, onClose = { showSettings = false })
+                            // updated call signature for SettingsScreen
+                            SettingsScreen(
+                                onClose = { showSettings = false },
+                                onManageHomeApps = { showSelectHome = true }
+                            )
                         }
                     }
 
@@ -236,7 +262,13 @@ class MainActivity : ComponentActivity() {
                     drawableToMonochromeImageBitmap(drawable, tintColor = tint, sizePx = 128)
                 }
                 if (bmp != null) {
-                    Box(modifier = Modifier.size(iconSizeDp.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(iconSizeDp.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.06f)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Image(bitmap = bmp, contentDescription = app.label, modifier = Modifier.size((iconSizeDp - 8).dp))
                     }
                 } else {

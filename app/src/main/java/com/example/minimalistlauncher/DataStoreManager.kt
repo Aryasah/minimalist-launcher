@@ -75,9 +75,9 @@ class DataStoreManager(private val context: Context) {
 
     suspend fun setHomeApps(newOrderedList: List<String>) {
         context.dataStore.edit { prefs ->
-            if (newOrderedList.isEmpty()) prefs.remove(Keys.HOME_APPS) else prefs[Keys.HOME_APPS] = newOrderedList.joinToString("|")
-            Log.d(TAG, "setHomeApps -> ${newOrderedList.joinToString("|")}")
+            prefs[Keys.HOME_APPS] = newOrderedList.joinToString("|")
         }
+        Log.d("DataStoreManager", "setHomeApps wrote: ${newOrderedList.joinToString(",")}")
     }
 
     suspend fun addHomeApp(pkg: String) {
