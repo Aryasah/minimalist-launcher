@@ -46,6 +46,11 @@ import com.example.minimalistlauncher.ui.PlaceholderIcon
 import com.example.minimalistlauncher.ui.theme.MinimalLauncherTheme
 import android.widget.FrameLayout
 import android.view.ViewGroup
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.graphics.ImageBitmapConfig
+import androidx.compose.foundation.shape.CircleShape
 
 data class AppInfo(val label: String, val pkg: String, val iconBitmap: ImageBitmap? = null)
 
@@ -63,7 +68,6 @@ class MainActivity : ComponentActivity() {
         appWidgetManager = AppWidgetManager.getInstance(this)
         appWidgetHost = AppWidgetHost(this, APPWIDGET_HOST_ID)
 
-        // widget picker result
         val pickWidgetLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK && result.data != null) {
                 val data = result.data!!
@@ -83,24 +87,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MinimalLauncherTheme {
-                // hide status bar always (home experience)
                 val windowInsetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-                LaunchedEffect(Unit) {
-                    windowInsetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-                }
+                LaunchedEffect(Unit) { windowInsetsController?.hide(androidx.core.view.WindowInsetsCompat.Type.statusBars()) }
 
                 val context = LocalContext.current
                 val dataStore = remember { DataStoreManager(context) }
+                val iconPack by dataStore.selectedIconPackFlow.collectAsState(initial = null)
 
-                // fetch installed apps (ResolveInfo list)
                 val resolveInfos = remember { fetchLaunchableResolveInfoList() }
-
                 val allApps: List<AppInfo> = remember(resolveInfos) {
-                    resolveInfos
-                        .map { ri: ResolveInfo ->
-                            AppInfo(ri.loadLabel(packageManager).toString(), ri.activityInfo.packageName, null)
-                        }
-                        .sortedBy { app: AppInfo -> app.label.lowercase() }
+                    resolveInfos.map { ri: ResolveInfo -> AppInfo(ri.loadLabel(packageManager).toString(), ri.activityInfo.packageName, null) }
+                        .sortedBy { it.label.lowercase() }
                 }
 
                 val whitelist by dataStore.whitelistFlow.collectAsState(initial = emptySet())
@@ -108,14 +105,13 @@ class MainActivity : ComponentActivity() {
 
                 var showDrawer by remember { mutableStateOf(false) }
                 var showSettings by remember { mutableStateOf(false) }
-                var showFocusMode by remember { mutableStateOf(false) }      // NEW
-                var showSelectHome by remember { mutableStateOf(false) }     // NEW
+                var showFocusMode by remember { mutableStateOf(false) }
+                var showSelectHome by remember { mutableStateOf(false) }
                 var focusModeEnabled by remember { mutableStateOf(false) }
                 val coroutineScope = rememberCoroutineScope()
 
                 BackHandler(enabled = !showDrawer && !showSettings && !showFocusMode && !showSelectHome) { /* consume */ }
 
-                // compute home list (either persisted selection OR first 5)
                 val homeAppsOrdered: List<AppInfo> = remember(allApps, persistedHomePkgs, focusModeEnabled, whitelist) {
                     if (focusModeEnabled) {
                         val set = whitelist
@@ -129,152 +125,73 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 20.dp)
-                    ) {
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
                         HomeClock()
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Home list - icons + label
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             homeAppsOrdered.forEach { app ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp)
-                                        .clickable { context.launchPackage(app.pkg) },
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    AppRowIconLabel(context = context, app = app)
+                                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).clickable { context.launchPackage(app.pkg) },
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    AppRowIconLabel(context = context, app = app, iconPack = iconPack)
                                 }
                             }
 
                             if (homeAppsOrdered.isEmpty()) {
-                                Text(
-                                    "No apps to show. Edit home in Settings.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    modifier = Modifier.padding(vertical = 12.dp)
-                                )
+                                Text("No apps to show. Edit home in Settings.", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f), modifier = Modifier.padding(vertical = 12.dp))
                             }
                         }
                     }
 
-                    // bottom-right controls: Focus FAB + Edit Home + Apps + Settings
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(18.dp),
-                        horizontalAlignment = Alignment.End
-                    ) {
-                        FloatingActionButton(
-                            onClick = { showFocusMode = true },
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ) {
-                            // uses your lawn graph vector drawable (ic_focus.xml)
+                    Column(modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp), horizontalAlignment = Alignment.End) {
+                        FloatingActionButton(onClick = { showFocusMode = true }, containerColor = MaterialTheme.colorScheme.primary) {
                             Icon(painter = painterResource(id = R.drawable.ic_focus), contentDescription = "Focus", tint = Color.White)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-
-                        // Edit Home opens a dedicated selector modal
-                        TextButton(onClick = { showSelectHome = true }) {
-                            Text(text = "Edit Home", color = Color.White)
-                        }
+                        TextButton(onClick = { showSelectHome = true }) { Text("Edit Home", color = Color.White) }
                         Spacer(modifier = Modifier.height(6.dp))
-
-                        TextButton(onClick = { showDrawer = true }) {
-                            Text("Apps", color = Color.White)
-                        }
+                        TextButton(onClick = { showDrawer = true }) { Text("Apps", color = Color.White) }
                         Spacer(modifier = Modifier.height(6.dp))
-
-                        TextButton(onClick = { showSettings = true }) {
-                            Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
-                        }
+                        TextButton(onClick = { showSettings = true }) { Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = Color.White) }
                     }
 
-                    // App drawer overlay
                     if (showDrawer) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                        ) {
-                            AppDrawer(
-                                apps = allApps,
-                                onClose = { showDrawer = false },
-                                onLaunch = { pkg: String ->
-                                    showDrawer = false
-                                    coroutineScope.launch { }
-                                    context.launchPackage(pkg)
-                                }
-                            )
+                        Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))) {
+                            AppDrawer(apps = allApps, onClose = { showDrawer = false }, onLaunch = { pkg: String ->
+                                showDrawer = false
+                                coroutineScope.launch { }
+                                context.launchPackage(pkg)
+                            })
                         }
                     }
 
-                    // Settings overlay
                     if (showSettings) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface),
-                            tonalElevation = 8.dp
-                        ) {
+                        Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
                             SettingsScreen(apps = allApps, onClose = { showSettings = false })
                         }
                     }
 
-                    // Focus Mode overlay (placeholder UI)
                     if (showFocusMode) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface),
-                            tonalElevation = 8.dp
-                        ) {
+                        Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
                             FocusModeScreen(onClose = { showFocusMode = false })
                         }
                     }
 
-                    // Select Home Apps overlay (dedicated picker)
                     if (showSelectHome) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface),
-                            tonalElevation = 8.dp
-                        ) {
-                            SelectHomeAppsScreen(
-                                apps = allApps,
-                                initialSelection = persistedHomePkgs,
-                                onClose = { showSelectHome = false }
-                            )
+                        Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
+                            SelectHomeAppsScreen(apps = allApps, initialSelection = persistedHomePkgs, onClose = { showSelectHome = false })
                         }
                     }
 
-                    // Widget host (if a widget was chosen earlier)
                     hostView?.let { hv ->
                         AndroidView(factory = { ctx ->
                             FrameLayout(ctx).apply {
                                 if (hv.parent != null) (hv.parent as? ViewGroup)?.removeView(hv)
-                                addView(hv, FrameLayout.LayoutParams(
-                                    FrameLayout.LayoutParams.MATCH_PARENT,
-                                    FrameLayout.LayoutParams.WRAP_CONTENT
-                                ))
+                                addView(hv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
                             }
-                        }, modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .align(Alignment.TopCenter)
-                            .padding(top = 120.dp)
-                        )
+                        }, modifier = Modifier.fillMaxWidth().height(120.dp).align(Alignment.TopCenter).padding(top = 120.dp))
                     }
                 }
             }
@@ -291,7 +208,6 @@ class MainActivity : ComponentActivity() {
         appWidgetHost.stopListening()
     }
 
-    // helper: fetch ResolveInfo list (explicit overload selection)
     private fun fetchLaunchableResolveInfoList(): List<ResolveInfo> {
         val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -302,24 +218,27 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Row showing monochrome icon + label (force white)
     @Composable
-    private fun AppRowIconLabel(context: android.content.Context, app: AppInfo, iconSizeDp: Int = 44) {
-        val drawable = remember(app.pkg) { context.getAppIconDrawableSafe(app.pkg) }
-        val tint = Color.White.toArgb() // force pure white tint
+    private fun AppRowIconLabel(context: android.content.Context, app: AppInfo, iconPack: String?, iconSizeDp: Int = 44) {
+        val drawable = remember(app.pkg, iconPack) {
+            var d: android.graphics.drawable.Drawable? = null
+            if (!iconPack.isNullOrEmpty()) {
+                d = tryLoadIconFromIconPack(context, iconPack, app.pkg)
+            }
+            if (d == null) d = context.getAppIconDrawableSafe(app.pkg)
+            d
+        }
+
+        val tint = Color.White.toArgb()
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (drawable != null) {
                 val bmp = remember(drawable, tint) {
-                    drawable.toMonochromeImageBitmap(tintColor = tint, sizePx = 96)
+                    drawableToMonochromeImageBitmap(drawable, tintColor = tint, sizePx = 128)
                 }
                 if (bmp != null) {
-                    Image(
-                        bitmap = bmp,
-                        contentDescription = app.label,
-                        modifier = Modifier
-                            .size(iconSizeDp.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                    )
+                    Box(modifier = Modifier.size(iconSizeDp.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
+                        Image(bitmap = bmp, contentDescription = app.label, modifier = Modifier.size((iconSizeDp - 8).dp))
+                    }
                 } else {
                     PlaceholderIcon(app.label)
                 }
@@ -328,12 +247,7 @@ class MainActivity : ComponentActivity() {
             }
 
             Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = app.label,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
-            )
+            Text(text = app.label, style = MaterialTheme.typography.bodyLarge, color = Color.White)
         }
     }
 }

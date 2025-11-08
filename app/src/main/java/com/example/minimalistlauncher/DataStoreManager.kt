@@ -1,35 +1,27 @@
 package com.example.minimalistlauncher
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private const val DATASTORE_NAME = "minimalist_settings"
 private val Context.dataStore by preferencesDataStore(name = DATASTORE_NAME)
+private const val TAG = "DataStoreManager"
 
 object Keys {
-    // We store these as pipe-separated strings (stable, ordered for HOME_APPS)
-    val WHITELIST = stringPreferencesKey("focus_whitelist")      // stored as "pkg1|pkg2|..."
-    val HOME_APPS = stringPreferencesKey("home_apps_ordered")   // stored as "pkgA|pkgB|..."
+    val WHITELIST = stringPreferencesKey("focus_whitelist")          // "pkg1|pkg2|..."
+    val HOME_APPS = stringPreferencesKey("home_apps_ordered")       // "pkgA|pkgB|..."
+    val ICON_PACK = stringPreferencesKey("icon_pack_package")       // package name or null
 }
 
-/**
- * DataStore manager with robust read logic that tolerates older Set<String> values.
- * (Some earlier code paths may have stored a Set; this will handle both.)
- */
 class DataStoreManager(private val context: Context) {
 
-    /**
-     * Helper: convert any possible backing value into a Set<String>.
-     * prefs[KEY] can be:
-     *  - a String (our canonical format: "p1|p2|p3")
-     *  - a Set<String> (older format from previous implementations)
-     *  - null
-     */
     private fun parseStringOrSet(raw: Any?): Set<String> {
         return when (raw) {
             is String -> raw.split("|").mapNotNull { it.takeIf { s -> s.isNotBlank() } }.toSet()
@@ -38,24 +30,19 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    /**
-     * whitelistFlow returns a Set<String> of package names.
-     * We read the preference value safely and normalize it to a Set<String>.
-     */
     val whitelistFlow: Flow<Set<String>> = context.dataStore.data
         .map { prefs ->
             val raw: Any? = prefs[Keys.WHITELIST]
-            // If raw is null -> try to recover from older typed entry stored under same key as set
             parseStringOrSet(raw)
         }
 
     suspend fun addToWhitelist(pkg: String) {
         context.dataStore.edit { prefs ->
-            // Read current in a tolerant way
             val currentRaw: Any? = prefs[Keys.WHITELIST]
             val current = parseStringOrSet(currentRaw).toMutableSet()
             current.add(pkg)
-            prefs[Keys.WHITELIST] = current.joinToString("|")
+            if (current.isEmpty()) prefs.remove(Keys.WHITELIST) else prefs[Keys.WHITELIST] = current.joinToString("|")
+            Log.d(TAG, "addToWhitelist -> ${current.joinToString("|")}")
         }
     }
 
@@ -64,20 +51,18 @@ class DataStoreManager(private val context: Context) {
             val currentRaw: Any? = prefs[Keys.WHITELIST]
             val current = parseStringOrSet(currentRaw).toMutableSet()
             current.remove(pkg)
-            prefs[Keys.WHITELIST] = current.joinToString("|")
+            if (current.isEmpty()) prefs.remove(Keys.WHITELIST) else prefs[Keys.WHITELIST] = current.joinToString("|")
+            Log.d(TAG, "removeFromWhitelist -> ${current.joinToString("|")}")
         }
     }
 
     suspend fun setWhitelist(newSet: Set<String>) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.WHITELIST] = newSet.joinToString("|")
+            if (newSet.isEmpty()) prefs.remove(Keys.WHITELIST) else prefs[Keys.WHITELIST] = newSet.joinToString("|")
+            Log.d(TAG, "setWhitelist -> ${newSet.joinToString("|")}")
         }
     }
 
-    /**
-     * HOME APPS - ordered list of package names (stored as pipe-separated string)
-     * We tolerate older set formats here too.
-     */
     val homeAppsFlow: Flow<List<String>> = context.dataStore.data
         .map { prefs ->
             val raw: Any? = prefs[Keys.HOME_APPS]
@@ -90,23 +75,22 @@ class DataStoreManager(private val context: Context) {
 
     suspend fun setHomeApps(newOrderedList: List<String>) {
         context.dataStore.edit { prefs ->
-            prefs[Keys.HOME_APPS] = newOrderedList.joinToString("|")
+            if (newOrderedList.isEmpty()) prefs.remove(Keys.HOME_APPS) else prefs[Keys.HOME_APPS] = newOrderedList.joinToString("|")
+            Log.d(TAG, "setHomeApps -> ${newOrderedList.joinToString("|")}")
         }
     }
 
     suspend fun addHomeApp(pkg: String) {
         context.dataStore.edit { prefs ->
-            // Read current toleranty
             val currentRaw: Any? = prefs[Keys.HOME_APPS]
             val current = when (currentRaw) {
                 is String -> currentRaw.split("|").filter { it.isNotBlank() }.toMutableList()
                 is Set<*> -> currentRaw.filterIsInstance<String>().toMutableList()
                 else -> mutableListOf()
             }
-            if (!current.contains(pkg) && current.size < 5) {
-                current.add(pkg)
-            }
-            prefs[Keys.HOME_APPS] = current.joinToString("|")
+            if (!current.contains(pkg) && current.size < 5) current.add(pkg)
+            if (current.isEmpty()) prefs.remove(Keys.HOME_APPS) else prefs[Keys.HOME_APPS] = current.joinToString("|")
+            Log.d(TAG, "addHomeApp -> ${current.joinToString("|")}")
         }
     }
 
@@ -119,7 +103,32 @@ class DataStoreManager(private val context: Context) {
                 else -> mutableListOf()
             }
             current.remove(pkg)
-            prefs[Keys.HOME_APPS] = current.joinToString("|")
+            if (current.isEmpty()) prefs.remove(Keys.HOME_APPS) else prefs[Keys.HOME_APPS] = current.joinToString("|")
+            Log.d(TAG, "removeHomeApp -> ${current.joinToString("|")}")
         }
+    }
+
+    // icon pack storage
+    val selectedIconPackFlow: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[Keys.ICON_PACK]
+    }
+
+    suspend fun setSelectedIconPack(packageName: String?) {
+        context.dataStore.edit { prefs ->
+            if (packageName == null) {
+                prefs.remove(Keys.ICON_PACK)
+                Log.d(TAG, "setSelectedIconPack -> removed (using system icons)")
+            } else {
+                prefs[Keys.ICON_PACK] = packageName
+                Log.d(TAG, "setSelectedIconPack -> $packageName")
+            }
+        }
+    }
+
+    // helper to read the current selected pack once (useful in tests or quick debug)
+    suspend fun getSelectedIconPackOnce(): String? {
+        val value = context.dataStore.data.first()[Keys.ICON_PACK]
+        Log.d(TAG, "getSelectedIconPackOnce -> $value")
+        return value
     }
 }
