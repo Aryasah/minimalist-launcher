@@ -97,6 +97,8 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
 
+    implementation("com.airbnb.android:lottie-compose:6.7.1") // check latest version
+
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.recyclerview:recyclerview:1.4.0")

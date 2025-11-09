@@ -57,6 +57,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.ui.text.font.FontFamily
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.minimalistlauncher.ui.FocusScreen
 
@@ -212,7 +214,11 @@ class MainActivity : ComponentActivity() {
                             id = "focus",
                             icon = { Icon(painter = painterResource(id = R.drawable.ic_focus), contentDescription = null, tint = Color.White) },
                             contentDescription = "Focus",
-                            onClick = { showFocusMode = true }
+                            onClick = {
+                                val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+                                windowInsetsController?.hide(WindowInsetsCompat.Type.statusBars())
+                                showFocusMode = true
+                            }
                         ),
                         RadialAction(
                             id = "edit_home",
