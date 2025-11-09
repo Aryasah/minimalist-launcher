@@ -43,7 +43,6 @@ import com.example.minimalistlauncher.ui.AppDrawer
 import com.example.minimalistlauncher.ui.SettingsScreen
 import com.example.minimalistlauncher.ui.HomeClock
 import com.example.minimalistlauncher.ui.SelectHomeAppsScreen
-import com.example.minimalistlauncher.ui.FocusModeScreen
 import com.example.minimalistlauncher.ui.PlaceholderIcon
 import com.example.minimalistlauncher.ui.theme.MinimalLauncherTheme
 import android.widget.FrameLayout
@@ -59,6 +58,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.lifecycleScope
+import com.example.minimalistlauncher.ui.FocusScreen
 
 data class AppInfo(val label: String, val pkg: String, val iconBitmap: ImageBitmap? = null)
 
@@ -273,7 +273,7 @@ class MainActivity : ComponentActivity() {
 
                     if (showFocusMode) {
                         Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
-                            FocusModeScreen(onClose = { showFocusMode = false })
+                            FocusScreen(onClose = { showFocusMode = false })
                         }
                     }
 

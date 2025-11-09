@@ -95,6 +95,8 @@ dependencies {
 
     implementation("com.google.android.material:material:1.9.0")
 
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.recyclerview:recyclerview:1.4.0")

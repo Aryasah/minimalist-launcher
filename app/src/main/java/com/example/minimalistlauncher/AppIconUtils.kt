@@ -1,8 +1,16 @@
 package com.example.minimalistlauncher
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlin.math.max
 
 /**
  * Return a Drawable for the app's launcher icon, or null if not available.

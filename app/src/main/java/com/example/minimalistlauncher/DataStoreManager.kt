@@ -3,8 +3,10 @@ package com.example.minimalistlauncher
 import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private const val DATASTORE_NAME = "minimalist_settings"
-private val Context.dataStore by preferencesDataStore(name = DATASTORE_NAME)
+val Context.dataStore by preferencesDataStore(name = DATASTORE_NAME)
 private const val TAG = "DataStoreManager"
 
 object Keys {
@@ -24,6 +26,15 @@ object Keys {
     val FONT_TYPE = stringPreferencesKey("launcher_font_type")      // "res"|"uri"|"pkg"
     val FONT_VALUE = stringPreferencesKey("launcher_font_value")    // resKey or uri string or "pkg:fontResName"
     val FONT_SIZE = intPreferencesKey("launcher_font_size") // stored as SP int (e.g. 16)
+
+    val FOCUS_ACTIVE = booleanPreferencesKey("focus_active")          // true while a focus session is active
+    val FOCUS_START_MS = longPreferencesKey("focus_start_ms")         // epoch ms
+    val FOCUS_DURATION_SEC = intPreferencesKey("focus_duration_sec")  // seconds
+    val FOCUS_TYPE = stringPreferencesKey("focus_type")               // "pomodoro"/"custom"
+    val FOCUS_BG_SOUND = stringPreferencesKey("focus_bg_sound")       // optional selected sound asset
+    val FOCUS_END_ELAPSED_MS = longPreferencesKey("focus_end_elapsed_ms") // monotonic end time (SystemClock.elapsedRealtime())
+    val FOCUS_PAUSED = booleanPreferencesKey("focus_paused")
+    val FOCUS_REMAINING_SEC = intPreferencesKey("focus_remaining_sec")
 }
 class DataStoreManager(private val context: Context) {
 
@@ -187,5 +198,95 @@ class DataStoreManager(private val context: Context) {
     suspend fun getLauncherFontSizeOnce(): Int {
         return context.dataStore.data.first()[Keys.FONT_SIZE] ?: 16
     }
+
+    // flows
+    val focusActiveFlow: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FOCUS_ACTIVE] ?: false }
+
+    val focusStartMsFlow: Flow<Long?> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FOCUS_START_MS] }
+
+    val focusDurationSecFlow: Flow<Int?> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FOCUS_DURATION_SEC] }
+
+    // setters
+    suspend fun setFocusActive(active: Boolean) {
+        context.dataStore.edit { prefs ->
+            if (!active) {
+                prefs.remove(Keys.FOCUS_ACTIVE)
+                prefs.remove(Keys.FOCUS_START_MS)
+                prefs.remove(Keys.FOCUS_DURATION_SEC)
+                prefs.remove(Keys.FOCUS_TYPE)
+            } else {
+                prefs[Keys.FOCUS_ACTIVE] = true
+            }
+        }
+        Log.d(TAG, "setFocusActive -> $active")
+    }
+
+    suspend fun writeFocusSession(startMs: Long, durationSec: Int, type: String = "custom", bgSound: String? = null) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.FOCUS_ACTIVE] = true
+            prefs[Keys.FOCUS_START_MS] = startMs
+            prefs[Keys.FOCUS_DURATION_SEC] = durationSec
+            prefs[Keys.FOCUS_TYPE] = type
+            if (bgSound == null) prefs.remove(Keys.FOCUS_BG_SOUND) else prefs[Keys.FOCUS_BG_SOUND] = bgSound
+        }
+        Log.d(TAG, "writeFocusSession -> start=$startMs dur=$durationSec type=$type")
+    }
+
+    suspend fun clearFocusSession() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.FOCUS_ACTIVE)
+            prefs.remove(Keys.FOCUS_START_MS)
+            prefs.remove(Keys.FOCUS_DURATION_SEC)
+            prefs.remove(Keys.FOCUS_TYPE)
+            prefs.remove(Keys.FOCUS_BG_SOUND)
+        }
+        Log.d(TAG, "clearFocusSession")
+    }
+
+    // read once helpers (optional)
+    suspend fun getCurrentFocusOnce(): Triple<Boolean, Long?, Int?> {
+        val prefs = context.dataStore.data.first()
+        val active = prefs[Keys.FOCUS_ACTIVE] ?: false
+        val start = prefs[Keys.FOCUS_START_MS]
+        val dur = prefs[Keys.FOCUS_DURATION_SEC]
+        return Triple(active, start, dur)
+    }
+
+    val focusEndElapsedFlow: Flow<Long?> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FOCUS_END_ELAPSED_MS] }
+
+    suspend fun writeFocusEndElapsed(endElapsedMs: Long) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.FOCUS_END_ELAPSED_MS] = endElapsedMs
+        }
+    }
+
+    suspend fun clearFocusEndElapsed() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.FOCUS_END_ELAPSED_MS)
+        }
+    }
+
+    val focusPausedFlow: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FOCUS_PAUSED] ?: false }
+
+    val focusRemainingFlow: Flow<Int?> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FOCUS_REMAINING_SEC] }
+
+    suspend fun setFocusPaused(paused: Boolean) {
+        context.dataStore.edit { prefs ->
+            if (!paused) prefs.remove(Keys.FOCUS_PAUSED) else prefs[Keys.FOCUS_PAUSED] = true
+        }
+    }
+
+    suspend fun setFocusRemainingSeconds(sec: Int?) {
+        context.dataStore.edit { prefs ->
+            if (sec == null) prefs.remove(Keys.FOCUS_REMAINING_SEC) else prefs[Keys.FOCUS_REMAINING_SEC] = sec
+        }
+    }
+
 }
 
