@@ -6,18 +6,29 @@ import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.DoNotDisturbOn
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import com.example.minimalistlauncher.FontManager
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.painterResource
 import com.airbnb.lottie.compose.* // optional; safe if dependency added
 import com.airbnb.lottie.compose.*
@@ -65,6 +77,12 @@ fun FocusScreen(
     val isRunning by vm.isRunning.collectAsState()
     val durationSec by vm.durationSec.collectAsState()
     val remainingSec by vm.remainingSec.collectAsState()
+
+    var selectedMinutes by remember { mutableStateOf(25) } // default preset
+    val selectedSeconds = remember(selectedMinutes) { selectedMinutes * 60 }
+
+    // whether the preset menu is visible (unfold)
+    var showPresets by remember { mutableStateOf(false) }
 
     // UI-only toggles
     var bgmEnabled by remember { mutableStateOf(false) }
@@ -102,7 +120,8 @@ fun FocusScreen(
     val breathScale by breathTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.03f,
-        animationSpec = infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse)
+        animationSpec = infiniteRepeatable(tween(2500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = ""
     )
 
     // DND helpers
@@ -225,26 +244,28 @@ fun FocusScreen(
                             // Lottie breathing (optional) overlay behind ring
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                                 if (useLottie) {
-                                    LottieBreath(modifier = Modifier.size(260.dp).align(Alignment.Center))
+                                    LottieBreath(modifier = Modifier
+                                        .size(260.dp)
+                                        .align(Alignment.Center))
                                 }
-                                // large ring canvas (drawn in front of Lottie)
-                                Canvas(modifier = Modifier.size(280.dp)) {
-                                    val stroke = 20f
-                                    drawArc(
-                                        color = onBg.copy(alpha = 0.12f),
-                                        startAngle = -90f,
-                                        sweepAngle = 360f,
-                                        useCenter = false,
-                                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                                    )
-                                    drawArc(
-                                        color = primary,
-                                        startAngle = -90f,
-                                        sweepAngle = 360f * animatedProgress,
-                                        useCenter = false,
-                                        style = Stroke(width = stroke, cap = StrokeCap.Round)
-                                    )
-                                }
+//                                // large ring canvas (drawn in front of Lottie)
+//                                Canvas(modifier = Modifier.size(280.dp)) {
+//                                    val stroke = 20f
+//                                    drawArc(
+//                                        color = onBg.copy(alpha = 0.12f),
+//                                        startAngle = -90f,
+//                                        sweepAngle = 360f,
+//                                        useCenter = false,
+//                                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+//                                    )
+//                                    drawArc(
+//                                        color = primary,
+//                                        startAngle = -90f,
+//                                        sweepAngle = 360f * animatedProgress,
+//                                        useCenter = false,
+//                                        style = Stroke(width = stroke, cap = StrokeCap.Round)
+//                                    )
+//                                }
                             }
 
                             Spacer(modifier = Modifier.height(18.dp))
@@ -267,52 +288,294 @@ fun FocusScreen(
 
                 // Bottom row: only two action controls maximum (Start/Pause-Resume + Stop), and small toggles (BGM + Lottie)
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        // Start / Pause / Resume (primary)
-                        Button(
+
+                    // animated preset panel (unfolds above controls)
+                    AnimatedPresetPanel(
+                        visible = showPresets,
+                        selectedMinutes = selectedMinutes,
+                        onSelect = { minutes -> selectedMinutes = minutes },
+                        onCollapse = { showPresets = false },
+                        primary = primary,
+                        onBg = onBg,
+                        autoCollapseAfterSelect = true
+                    )
+
+
+                    Spacer(modifier = Modifier.height(if (showPresets) 8.dp else 0.dp))
+
+                    // --- Main control row: Play / Pause / Resume + Stop ---
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 64.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Primary control: Play / Pause / Resume
+                        FilledIconButton(
                             onClick = {
-                                if (!isActive) vm.start(25 * 60, type = "preset")
+                                if (!isActive) vm.start(selectedSeconds, type = "preset")
                                 else if (isRunning) vm.pause()
                                 else vm.resume()
                             },
-                            modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(RoundedCornerShape(50))
+                                .shadow(elevation = 8.dp, shape = CircleShape)
                         ) {
-                            Icon(imageVector = if (!isActive || !isRunning) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = if (!isActive) "Start" else if (isRunning) "Pause" else "Resume")
+                            Icon(
+                                imageVector = if (!isActive || !isRunning)
+                                    Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = "Toggle Focus",
+                            )
                         }
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(24.dp))
 
-                        // Stop (secondary)
-                        OutlinedButton(
+                        // Stop / Reset
+                        FilledIconButton(
                             onClick = { vm.stop() },
-                            modifier = Modifier.heightIn(min = 56.dp)
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = onBg.copy(alpha = 0.08f),
+                                contentColor = onBg.copy(alpha = 0.9f)
+                            ),
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(RoundedCornerShape(50))
+                                .shadow(elevation = 8.dp, shape = CircleShape)
                         ) {
-                            Icon(imageVector = Icons.Default.Stop, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Stop")
+                            Icon(
+                                imageVector = Icons.Default.RestartAlt,
+                                contentDescription = "Stop Focus"
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // tiny lower row for auxiliaries: BGM toggle + Lottie toggle (kept small)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { bgmEnabled = !bgmEnabled }) {
-                                Icon(imageVector = Icons.Default.Headphones, contentDescription = "BGM", tint = if (bgmEnabled) primary else onBg.copy(alpha = 0.6f))
-                            }
-                            Text("BGM", color = onBg.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall)
-                        }
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Lottie toggle
-                            Text("Breath animation", color = onBg.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall)
-                            Switch(checked = useLottie, onCheckedChange = { useLottie = it }, colors = SwitchDefaults.colors(checkedTrackColor = primary))
-                        }
-                    }
+                    // tiny auxiliary row with clock that toggles the panel
+                    AuxiliaryTogglesRowWithClock(
+                        bgmEnabled = bgmEnabled,
+                        onToggleBgm = { bgmEnabled = !bgmEnabled },
+                        useLottie = useLottie,
+                        onToggleLottie = { useLottie = !useLottie },
+                        dndEnabled = dndEnabled,
+                        onToggleDnd = { /* keep if needed */ },
+                        onTogglePresets = { showPresets = !showPresets },
+                        primary = primary,
+                        onBg = onBg
+                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresetRow(
+    presets: List<Int> = listOf(5, 10, 15, 25, 50), // minutes
+    selectedMinutes: Int,
+    onSelect: (Int) -> Unit,
+    primary: Color,
+    onBg: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        presets.forEach { minutes ->
+            val selected = minutes == selectedMinutes
+            // circular button with small minutes overlay
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(42.dp)) {
+                IconButton(
+                    onClick = { onSelect(minutes) },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .border(
+                            width = if (selected) 2.dp else 1.dp,
+                            color = if (selected) primary else onBg.copy(alpha = 0.18f),
+                            shape = CircleShape
+                        )
+                        .background(if (selected) primary.copy(alpha = 0.14f) else Color.Transparent)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = "Start ${minutes} minutes",
+                        tint = if (selected) primary else onBg.copy(alpha = 0.72f)
+                    )
+                }
+
+                // small minutes overlay (keeps UI compact — tiny numeric hint)
+                Text(
+                    text = "${minutes}",
+                    color = if (selected) primary else onBg.copy(alpha = 0.85f),
+                    fontSize = 11.sp,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .offset(y = 20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuxiliaryTogglesRowWithClock(
+    bgmEnabled: Boolean,
+    onToggleBgm: () -> Unit,
+    useLottie: Boolean,
+    onToggleLottie: () -> Unit,
+    dndEnabled: Boolean,            // if you still want dnd state elsewhere
+    onToggleDnd: () -> Unit,        // keep for legacy/actions if needed
+    onTogglePresets: () -> Unit,    // toggle preset panel
+    primary: Color,
+    onBg: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // BGM toggle
+        ToggleIconButton(
+            checked = bgmEnabled,
+            onClick = onToggleBgm,
+            icon = { Icon(imageVector = Icons.Default.Headphones, contentDescription = "BGM") },
+            modifier = Modifier.size(48.dp),
+            onColor = primary,
+            offColor = onBg.copy(alpha = 0.6f)
+        )
+
+        // Clock / Preset toggle (replaces DND)
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
+            IconButton(
+                onClick = onTogglePresets,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccessTime, // or Icons.Default.Timer
+                    contentDescription = "Presets",
+                    tint = onBg.copy(alpha = 0.9f)
+                )
+            }
+            // small dot if the preset panel is open (optional)
+            // you can color it primary when open; parent should pass that state if needed
+        }
+
+        // Breath animation toggle (Spa)
+        ToggleIconButton(
+            checked = useLottie,
+            onClick = onToggleLottie,
+            icon = { Icon(imageVector = Icons.Default.Spa, contentDescription = "Breath animation") },
+            modifier = Modifier.size(48.dp),
+            onColor = primary,
+            offColor = onBg.copy(alpha = 0.6f)
+        )
+    }
+}
+
+@Composable
+private fun ToggleIconButton(
+    checked: Boolean,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    onColor: Color,
+    offColor: Color
+) {
+    // Large clickable area; visual state indicated by icon tint + small badge
+    Box(contentAlignment = Alignment.Center, modifier = modifier) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(12.dp)),
+            // keep background subtle when off, stronger when on
+            colors = IconButtonDefaults.iconButtonColors(
+                contentColor = if (checked) onColor else offColor
+            )
+        ) {
+            // icon composable provided by caller
+            icon()
+        }
+
+        // small status dot top-right
+        val dotColor = if (checked) onColor else offColor.copy(alpha = 0.45f)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-4).dp, y = 4.dp)
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(dotColor)
+                .border(
+                    width = 1.dp,
+                    color = Color.Black.copy(alpha = 0.18f),
+                    shape = CircleShape
+                )
+        )
+    }
+}
+
+
+@Composable
+private fun AnimatedPresetPanel(
+    visible: Boolean,
+    selectedMinutes: Int,
+    onSelect: (Int) -> Unit,
+    onCollapse: () -> Unit,
+    primary: Color,
+    onBg: Color,
+    modifier: Modifier = Modifier,
+    autoCollapseAfterSelect: Boolean = true
+) {
+    val scope = rememberCoroutineScope()
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(
+            animationSpec = tween(280, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(220)),
+        exit = shrinkVertically(
+            animationSpec = tween(220, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(180)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = onBg.copy(alpha = 0.00f))
+        ) {
+            Column(modifier = Modifier.padding(vertical = 10.dp)) {
+                PresetRow(
+                    presets = listOf(5, 10, 15, 25, 50),
+                    selectedMinutes = selectedMinutes,
+                    onSelect = { minutes ->
+                        // first inform parent of selected value
+                        onSelect(minutes)
+
+                        // then optionally collapse after a small delay so user sees the selection
+                        if (autoCollapseAfterSelect) {
+                            scope.launch {
+                                kotlinx.coroutines.delay(140)
+                                onCollapse()
+                            }
+                        }
+                    },
+                    primary = primary,
+                    onBg = onBg,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
             }
         }
     }
