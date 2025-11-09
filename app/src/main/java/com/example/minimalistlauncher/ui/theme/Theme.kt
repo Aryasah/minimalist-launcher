@@ -1,13 +1,16 @@
 package com.example.minimalistlauncher.ui.theme
+
 import androidx.compose.material3.*
-import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import com.example.minimalistlauncher.FontManager
+import com.example.minimalistlauncher.DataStoreManager
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.material3.Typography
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFBBBBBB),
@@ -20,20 +23,30 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun MinimalLauncherTheme(content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val store = remember { DataStoreManager(context) }
+    val fontSize by store.launcherFontSizeFlow.collectAsState(initial = 16)
+
     MaterialTheme(
         colorScheme = DarkColorScheme,
-        typography = buildTypography(FontManager.composeFontFamily),
+        typography = buildTypography(FontManager.composeFontFamily, fontSize),
         shapes = Shapes(),
         content = content
     )
 }
 
-fun buildTypography(dynamicFamily: FontFamily?): Typography {
-    val family = dynamicFamily ?: InterFontFamily   // InterFontFamily is the fallback from Type.kt
+fun buildTypography(dynamicFamily: FontFamily?, baseSp: Int): Typography {
+    val family = dynamicFamily ?: InterFontFamily
+    // derive sizes from baseSp
+    val bodyLarge = baseSp.sp
+    val bodyMedium = (baseSp - 2).coerceAtLeast(10).sp
+    val titleMedium = (baseSp + 2).sp
+    val titleLarge = (baseSp + 6).sp
+
     return Typography(
-        titleLarge = TextStyle(fontFamily = family, fontSize = 20.sp),
-        titleMedium = TextStyle(fontFamily = family, fontSize = 16.sp),
-        bodyLarge = TextStyle(fontFamily = family, fontSize = 16.sp),
-        bodyMedium = TextStyle(fontFamily = family, fontSize = 14.sp)
+        titleLarge = androidx.compose.ui.text.TextStyle(fontFamily = family, fontSize = titleLarge),
+        titleMedium = androidx.compose.ui.text.TextStyle(fontFamily = family, fontSize = titleMedium),
+        bodyLarge = androidx.compose.ui.text.TextStyle(fontFamily = family, fontSize = bodyLarge),
+        bodyMedium = androidx.compose.ui.text.TextStyle(fontFamily = family, fontSize = bodyMedium)
     )
 }

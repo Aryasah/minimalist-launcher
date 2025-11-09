@@ -106,7 +106,6 @@ class MainActivity : ComponentActivity() {
                     // map value to resId (value is the key e.g., "inter")
                     val resId = when (value) {
                         "inter" -> R.font.inter
-                        "inter_medium" -> R.font.inter_medium
                         "poppins" -> R.font.poppins
                         "roboto" -> R.font.roboto
                         else -> 0

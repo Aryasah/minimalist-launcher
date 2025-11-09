@@ -14,7 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontFamily
 import java.io.File
 
-object FontManager {
+public object FontManager {
     private const val PREFS = "launcher_fonts"
     private const val KEY_TYPE = "font_type"      // "res", "uri", "pkg"
     private const val KEY_VALUE = "font_value"    // resKey or uri string or "pkg:fontname"

@@ -349,7 +349,7 @@ private fun SectionHeader(title: String) {
                 text = title,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
         }
@@ -404,7 +404,7 @@ private fun FontRow(title: String, sampleTypeface: Typeface?, selected: Boolean,
                 "Aa Bb Cc — 0123",
                 fontFamily = sampleTypeface?.let { FontFamily(it) } ?: FontManager.composeFontFamily,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
-                fontSize = 13.sp
+                style = MaterialTheme.typography.bodyMedium
             )
         }
 

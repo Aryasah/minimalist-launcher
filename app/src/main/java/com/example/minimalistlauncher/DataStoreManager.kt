@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,7 @@ object Keys {
     // Font persistence keys (new)
     val FONT_TYPE = stringPreferencesKey("launcher_font_type")      // "res"|"uri"|"pkg"
     val FONT_VALUE = stringPreferencesKey("launcher_font_value")    // resKey or uri string or "pkg:fontResName"
+    val FONT_SIZE = intPreferencesKey("launcher_font_size") // stored as SP int (e.g. 16)
 }
 class DataStoreManager(private val context: Context) {
 
@@ -145,6 +147,10 @@ class DataStoreManager(private val context: Context) {
     /** Flow: current font value (resKey or uri string or pkg:fontResName) or null */
     val launcherFontValueFlow: Flow<String?> = context.dataStore.data.map { prefs -> prefs[Keys.FONT_VALUE] }
 
+    /** Flow: launcher font size in SP (default 16) */
+    val launcherFontSizeFlow: Flow<Int> = context.dataStore.data
+        .map { prefs -> prefs[Keys.FONT_SIZE] ?: 16 }
+
     /** Atomically set font selection (type + value) */
     suspend fun setLauncherFont(type: String, value: String) {
         context.dataStore.edit { prefs ->
@@ -167,6 +173,19 @@ class DataStoreManager(private val context: Context) {
     suspend fun getLauncherFontOnce(): Pair<String?, String?> {
         val prefs = context.dataStore.data.first()
         return prefs[Keys.FONT_TYPE] to prefs[Keys.FONT_VALUE]
+    }
+
+    /** Atomically set font size (store int SP) */
+    suspend fun setLauncherFontSize(sizeSp: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.FONT_SIZE] = sizeSp
+        }
+        Log.d(TAG, "setLauncherFontSize -> $sizeSp")
+    }
+
+    /** Read once (useful on startup) */
+    suspend fun getLauncherFontSizeOnce(): Int {
+        return context.dataStore.data.first()[Keys.FONT_SIZE] ?: 16
     }
 }
 

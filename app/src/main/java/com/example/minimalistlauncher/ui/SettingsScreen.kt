@@ -34,12 +34,15 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import com.example.minimalistlauncher.FontManager
 
 private const val SETTINGS_TAG = "SettingsScreen"
 
@@ -73,17 +76,16 @@ fun SettingsScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item {
-                Text("Appearance", color = Color.White, style = MaterialTheme.typography.titleSmall, fontSize = 13.sp)
-            }
+//            item {
+//                SectionHeader("Appearance")
+//            }
 
             item {
                 FontCardRow(onOpenFontScreen = { showFontScreen = true })
             }
 
-
-            // Icon pack picker (compact)
             item {
+                SectionHeader("Font Size")
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
@@ -91,8 +93,21 @@ fun SettingsScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Text("Icon pack", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(6.dp))
+                        FontSizeSliderRow(openFontScreen = { showFontScreen = true })
+                    }
+                }
+            }
+
+            // Icon pack picker (compact)
+            item {
+                SectionHeader("Icon pack")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
                         IconPackPickerRow(onPick = { pkg ->
                             Log.d(SETTINGS_TAG, "Icon pack chosen: $pkg")
                         }, currentPack = selectedIconPack)
@@ -111,26 +126,27 @@ fun SettingsScreen(
                         Checkbox(
                             checked = showOriginalIcons,
                             onCheckedChange = { showOriginalIcons = it },
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(20.dp),
+                            colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Show original icons", color = Color.White, fontSize = 13.sp)
+                        Text("Show original icons", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium)
                     }
 
                     Button(
                         onClick = { showPreview = true },
                         enabled = selectedIconPack != null,
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Preview", fontSize = 13.sp, color = Color.White)
+                        Text("Preview", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
 
             // Home management (compact)
             item {
-                Text("Home", color = Color.White, style = MaterialTheme.typography.titleSmall, fontSize = 13.sp)
+                SectionHeader("Home")
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
@@ -139,7 +155,7 @@ fun SettingsScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Text("Manage Home Apps", fontSize = 13.sp, color = Color.White)
+                        Text("Manage Home Apps", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
                     }
                     OutlinedButton(
                         onClick = {
@@ -148,17 +164,16 @@ fun SettingsScreen(
                         modifier = Modifier.widthIn(min = 120.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                     ) {
-                        Text("Clear", fontSize = 13.sp)
+                        Text("Clear", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
 
             // About / footer (minimal)
             item {
+                SectionHeader("About")
                 Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    Text("About", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Minimalist Launcher — simple, minimal home screen", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                    Text("Minimalist Launcher — simple, minimal home screen", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -204,10 +219,10 @@ fun IconPackPreviewDialog(iconPack: String?, onClose: () -> Unit, showOriginal: 
 
     AlertDialog(
         onDismissRequest = onClose,
-        title = { Text("Preview icon pack", color = Color.White, fontSize = 14.sp) },
+        title = { Text("Preview icon pack", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium) },
         text = {
             Column {
-                Text("Green=P, Cyan=S, ?=none", color = Color.White, fontSize = 11.sp)
+                Text("Green=P, Cyan=S, ?=none", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodySmall)
                 Spacer(modifier = Modifier.height(10.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -279,7 +294,7 @@ fun IconPackPreviewDialog(iconPack: String?, onClose: () -> Unit, showOriginal: 
                                         .background(Color.White.copy(alpha = 0.06f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("?", color = Color.White, fontSize = 12.sp)
+                                    Text("?", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -290,9 +305,9 @@ fun IconPackPreviewDialog(iconPack: String?, onClose: () -> Unit, showOriginal: 
                                     "system" -> Color.Cyan
                                     "none" -> Color.Red
                                     "loading" -> Color.Yellow
-                                    else -> Color.White
+                                    else -> MaterialTheme.colorScheme.onSurface
                                 },
-                                fontSize = 11.sp
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
@@ -300,7 +315,7 @@ fun IconPackPreviewDialog(iconPack: String?, onClose: () -> Unit, showOriginal: 
             }
         },
         confirmButton = {
-            TextButton(onClick = onClose, contentPadding = PaddingValues(8.dp)) { Text("Done", color = Color.White, fontSize = 13.sp) }
+            TextButton(onClick = onClose, contentPadding = PaddingValues(8.dp)) { Text("Done", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium) }
         }
     )
 }
@@ -336,8 +351,8 @@ fun IconPackPickerRow(onPick: (String?) -> Unit, currentPack: String?) {
     // Known packs to check (adjust package ids if Play Store package id differs)
     val known = listOf(
         "app.lawnchair.lawnicons.play" to "Lawnicons",
-        "com.whicons.iconpack" to "Whicons",
-        "org.jraf.iconpack.simple" to "ExamplePack"
+        "com.donnnno.arcticons" to "ArtIcons",
+        "com.donnnno.arcticons.you.play" to "ArtIcons By You"
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -345,10 +360,10 @@ fun IconPackPickerRow(onPick: (String?) -> Unit, currentPack: String?) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(niceName, color = Color.White, modifier = Modifier.weight(1f), fontSize = 13.sp)
+                Text(niceName, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 val installed by remember { derivedStateOf { context.isPackageInstalled(pkg) } }
 
                 if (installed) {
@@ -358,10 +373,12 @@ fun IconPackPickerRow(onPick: (String?) -> Unit, currentPack: String?) {
                             coroutineScope.launch { store.setSelectedIconPack(pkg) }
                             onPick(pkg)
                         },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = if (currentPack == pkg) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
                     ) {
-                        Text(if (currentPack == pkg) "Selected" else "Use", fontSize = 12.sp)
+                        Text(if (currentPack == pkg) "Selected" else "Use", style = MaterialTheme.typography.bodySmall,
+                            color =  if (currentPack != pkg) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+                            )
                     }
                 } else {
                     OutlinedButton(
@@ -420,7 +437,7 @@ fun FontCardRow(onOpenFontScreen: () -> Unit) {
             else -> "System (default)"
         }
     }
-
+    SectionHeader("Font Family")
     Card(
         modifier = Modifier
             .fillMaxWidth(),
@@ -435,20 +452,147 @@ fun FontCardRow(onOpenFontScreen: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Font", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(labelFor(currentType, currentValue), color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+            Column(modifier = Modifier.weight(1f).padding(vertical = 4.dp)) {
+                Text(labelFor(currentType, currentValue), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
             }
 
             // simple affordance and small hint of selection
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = "open",
-                tint = Color.White.copy(alpha = 0.8f)
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+        }
+    }
+}
+
+@Composable
+fun FontSizeSliderRow(openFontScreen: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val store = remember { DataStoreManager(context) }
+    val coroutine = rememberCoroutineScope()
+
+    // Stored font size (from DataStore) — the "applied" value used by the theme
+    val storedFontSize by store.launcherFontSizeFlow.collectAsState(initial = 16)
+
+    // Local preview state — user edits this with the slider.
+    var tempSize by remember { mutableStateOf(storedFontSize) }
+    var isEditing by remember { mutableStateOf(false) }
+
+    // If the stored value changes externally and user is not actively editing, update temp.
+    LaunchedEffect(storedFontSize) {
+        if (!isEditing) tempSize = storedFontSize
+    }
+
+    // Debounce to detect "finished" slider interaction: when tempSize changes, mark editing and clear after delay
+    LaunchedEffect(tempSize) {
+        isEditing = true
+        // wait for a pause in updates to consider it finished
+        kotlinx.coroutines.delay(600)
+        isEditing = false
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Slider(
+                value = tempSize.toFloat(),
+                onValueChange = { newVal ->
+                    // update preview value locally while dragging
+                    tempSize = newVal.toInt().coerceIn(12, 28)
+
+                },
+                valueRange = 12f..28f,
+                steps = 16,
+                modifier = Modifier.weight(1f)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // numeric readout (preview) — shows temp value
+            Text("${tempSize}sp", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.widthIn(min = 48.dp))
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+
+        ) {
+            // Preview
+
+            Text(
+                text = "The quick brown fox jumps over the lazy dog",
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                fontFamily = FontManager.composeFontFamily,
+                fontSize = tempSize.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(10.dp)
             )
 
 
+
+
+
+
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), )  {
+            OutlinedButton(
+                onClick = {
+                    // Reset preview to default (does not apply)
+                    tempSize = 16
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Reset", style = MaterialTheme.typography.bodySmall)
+            }
+
+            Button(
+                onClick = {
+                    // Apply the preview -> write to DataStore which will trigger theme recomposition
+                    coroutine.launch {
+                        store.setLauncherFontSize(tempSize)
+                        // optional small feedback
+                        Toast.makeText(context, "Font size applied: ${tempSize}sp", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Apply", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+
+    }
+}
+
+/** Chip-style section header */
+@Composable
+private fun SectionHeader(title: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(50),
+            tonalElevation = 0.dp
+        ) {
+            Text(
+                text = title,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
         }
     }
 }

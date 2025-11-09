@@ -63,7 +63,7 @@ fun AppDrawer(
             useBackIcon = true,
             actions = {
                 TextButton(onClick = { /* open search */ }) {
-                    Text("Search", color = Color.White, fontSize = 13.sp)
+                    Text("Search", color = Color.White, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         )

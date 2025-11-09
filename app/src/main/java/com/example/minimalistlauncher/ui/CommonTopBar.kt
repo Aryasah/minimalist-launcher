@@ -57,9 +57,8 @@ fun CommonTopBar(
                         ) {
                             Text(
                                 "Close",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
@@ -75,9 +74,9 @@ fun CommonTopBar(
                 ) {
                     Text(
                         text = title,
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        // use theme typography so family+size update with theme
+                        style = MaterialTheme.typography.titleLarge,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
