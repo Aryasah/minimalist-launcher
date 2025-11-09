@@ -9,7 +9,7 @@ import com.example.minimalistlauncher.R
 
 // Add two font files to res/font: inter_regular.ttf and inter_medium.ttf (or any fonts you prefer)
 val InterFontFamily = FontFamily(
-        Font(R.font.inter_regular),
+        Font(R.font.inter),
         Font(R.font.inter_medium)
 )
 

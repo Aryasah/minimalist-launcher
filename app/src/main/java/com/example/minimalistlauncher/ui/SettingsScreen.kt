@@ -1,9 +1,12 @@
 package com.example.minimalistlauncher.ui
 
 import android.content.Intent
+import android.os.Build
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,9 +34,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.res.stringResource
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.ui.text.font.FontWeight
-import androidx.media3.exoplayer.offline.Download
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.res.painterResource
 
 private const val SETTINGS_TAG = "SettingsScreen"
 
@@ -50,6 +56,8 @@ fun SettingsScreen(
 
     var showPreview by remember { mutableStateOf(false) }
     var showOriginalIcons by remember { mutableStateOf(false) }
+
+    var showFontScreen by remember { mutableStateOf(false) }
 
     // compact paddings and smaller text sizes
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -68,6 +76,11 @@ fun SettingsScreen(
             item {
                 Text("Appearance", color = Color.White, style = MaterialTheme.typography.titleSmall, fontSize = 13.sp)
             }
+
+            item {
+                FontCardRow(onOpenFontScreen = { showFontScreen = true })
+            }
+
 
             // Icon pack picker (compact)
             item {
@@ -159,6 +172,12 @@ fun SettingsScreen(
             onClose = { showPreview = false },
             showOriginal = showOriginalIcons
         )
+    }
+
+    if (showFontScreen) {
+        Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
+            FontScreen(onClose = { showFontScreen = false })
+        }
     }
 }
 
@@ -374,6 +393,62 @@ fun IconPackPickerRow(onPick: (String?) -> Unit, currentPack: String?) {
             ) {
                 Text("Use system icons", fontSize = 12.sp)
             }
+        }
+    }
+}
+
+
+@Composable
+fun FontCardRow(onOpenFontScreen: () -> Unit) {
+    val context = LocalContext.current
+    val ds = remember { DataStoreManager(context) }
+    val currentType by ds.launcherFontTypeFlow.collectAsState(initial = null)
+    val currentValue by ds.launcherFontValueFlow.collectAsState(initial = null)
+
+    // Convert persisted value to friendly label
+    fun labelFor(type: String?, value: String?): String {
+        return when (type) {
+            "res" -> value?.replaceFirstChar { it.uppercase() } ?: "Bundled"
+            "uri" -> value?.let {
+                // show filename only
+                try {
+                    val last = android.net.Uri.parse(it).lastPathSegment ?: it
+                    last.substringAfterLast('/').substringBefore('?')
+                } catch (t: Throwable) { it }
+            } ?: "Custom"
+            "pkg" -> value?.substringBefore(":")?.substringAfterLast('.') ?: "Package"
+            else -> "System (default)"
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenFontScreen() }
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Font", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(labelFor(currentType, currentValue), color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+            }
+
+            // simple affordance and small hint of selection
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "open",
+                tint = Color.White.copy(alpha = 0.8f)
+            )
+
+
         }
     }
 }

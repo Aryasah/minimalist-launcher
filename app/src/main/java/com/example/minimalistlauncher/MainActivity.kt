@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.content.pm.ResolveInfo
+import android.net.Uri
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -51,6 +52,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
+import com.example.minimalistlauncher.ui.RadialAction
+import com.example.minimalistlauncher.ui.RadialMenu
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.ui.text.font.FontFamily
+import androidx.lifecycle.lifecycleScope
 
 data class AppInfo(val label: String, val pkg: String, val iconBitmap: ImageBitmap? = null)
 
@@ -65,22 +73,50 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Attempt to reapply persisted fonts. For "res" selections we map keys -> R.font.* here.
+        // mapping for bundled fonts:
+        val prefs = getSharedPreferences("launcher_fonts", MODE_PRIVATE)
+        val type = prefs.getString("font_type", null)
+        val value = prefs.getString("font_value", null)
+
+        if (type == "res" && value != null) {
+            // map the stored key to an actual resource id
+            val resId = when (value) {
+                "inter" -> R.font.inter
+                // add other mappings like "roboto" -> R.font.roboto_regular
+                else -> null
+            }
+            resId?.let { FontManager.loadFromRes(this, it, value) }
+        } else {
+            // for uri/pkg, let FontManager try to reapply itself:
+            FontManager.reapplyPersistedFont(this)
+        }
+
         appWidgetManager = AppWidgetManager.getInstance(this)
         appWidgetHost = AppWidgetHost(this, APPWIDGET_HOST_ID)
 
-        val pickWidgetLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK && result.data != null) {
-                val data = result.data!!
-                val appWidgetId = data.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                    try {
-                        val info = appWidgetManager.getAppWidgetInfo(appWidgetId)
-                        hostView = appWidgetHost.createView(this, appWidgetId, info)
-                        hostView?.setAppWidget(appWidgetId, info)
-                        currentAppWidgetId = appWidgetId
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+        // in MainActivity.onCreate
+        val ds = DataStoreManager(this)
+
+        lifecycleScope.launchWhenCreated {
+            val ds = DataStoreManager(this@MainActivity)
+            val (type, value) = ds.getLauncherFontOnce()
+            when (type) {
+                "res" -> {
+                    // map value to resId (value is the key e.g., "inter")
+                    val resId = when (value) {
+                        "inter" -> R.font.inter
+                        "inter_medium" -> R.font.inter_medium
+                        "poppins" -> R.font.poppins
+                        "roboto" -> R.font.roboto
+                        else -> 0
                     }
+                    if (resId != 0) FontManager.loadFromRes(this@MainActivity, resId, value!!)
+                }
+                "uri" -> value?.let { FontManager.loadFromUri(this@MainActivity, Uri.parse(it)) }
+                "pkg" -> value?.let {
+                    val parts = it.split(":", limit = 2)
+                    if (parts.size == 2) FontManager.loadFromPackageFont(this@MainActivity, parts[0], parts[1])
                 }
             }
         }
@@ -169,15 +205,52 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    Column(modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp), horizontalAlignment = Alignment.End) {
-                        FloatingActionButton(onClick = { showFocusMode = true }, containerColor = MaterialTheme.colorScheme.primary) {
-                            Icon(painter = painterResource(id = R.drawable.ic_focus), contentDescription = "Focus", tint = Color.White)
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        TextButton(onClick = { showDrawer = true }) { Text("Apps", color = Color.White) }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        TextButton(onClick = { showSettings = true }) { Icon(imageVector = Icons.Default.Settings, contentDescription = "Settings", tint = Color.White) }
+                    // --- inside Box(modifier = ...) in setContent, replace the Column(...) block ---
+
+// create the actions you want
+                    val radialActions = listOf(
+                        RadialAction(
+                            id = "focus",
+                            icon = { Icon(painter = painterResource(id = R.drawable.ic_focus), contentDescription = null, tint = Color.White) },
+                            contentDescription = "Focus",
+                            onClick = { showFocusMode = true }
+                        ),
+                        RadialAction(
+                            id = "edit_home",
+                            icon = { Icon(imageVector = Icons.Default.Edit, contentDescription = null, tint = Color.White) },
+                            contentDescription = "Edit home",
+                            onClick = { showSelectHome = true }
+                        ),
+                        RadialAction(
+                            id = "apps",
+                            icon = { Icon(imageVector = Icons.Default.GridView, contentDescription = null, tint = Color.White) },
+                            contentDescription = "Apps",
+                            onClick = { showDrawer = true }
+                        ),
+                        RadialAction(
+                            id = "settings",
+                            icon = { Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = Color.White) },
+                            contentDescription = "Settings",
+                            onClick = { showSettings = true }
+                        )
+                    )
+
+// place radial menu at bottom-end
+                    Box(modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(18.dp)) {
+                        RadialMenu(
+                            actions = radialActions,
+                            radiusDp = 100.dp,
+                            startAngleDegrees = 180f, // ⬅ fan starts upper-left of the FAB
+                            sweepAngleDegrees = 90f,  // covers up-left to up
+                            centerButtonSize = 56.dp,
+                            centerButtonColor = MaterialTheme.colorScheme.primary,
+                            centerIconColor = Color.White,
+                            onOpenedChanged = { open -> Log.d("RadialMenu", "open=$open") }
+                        )
                     }
+
 
                     if (showDrawer) {
                         Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))) {
@@ -279,7 +352,12 @@ class MainActivity : ComponentActivity() {
             }
 
             Spacer(modifier = Modifier.width(12.dp))
-            Text(text = app.label, style = MaterialTheme.typography.bodyLarge, color = Color.White)
+            Text(
+    text = app.label,
+    style = MaterialTheme.typography.bodyLarge,
+    color = Color.White,
+    fontFamily = FontManager.composeFontFamily // this updates reactively
+)
         }
     }
 }

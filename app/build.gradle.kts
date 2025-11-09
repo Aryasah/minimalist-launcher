@@ -20,8 +20,35 @@ android {
         }
     }
 
+    // --- SIGNING CONFIG (Kotlin DSL) ---
+    // read properties from gradle.properties (project or ~/.gradle/gradle.properties)
+    val releaseStoreFileProp: String? = project.findProperty("RELEASE_STORE_FILE") as String?
+    val releaseStorePasswordProp: String? = project.findProperty("RELEASE_STORE_PASSWORD") as String?
+    val releaseKeyAliasProp: String? = project.findProperty("RELEASE_KEY_ALIAS") as String?
+    val releaseKeyPasswordProp: String? = project.findProperty("RELEASE_KEY_PASSWORD") as String?
+
+    signingConfigs {
+        // create only if we have required properties; still define a config so Gradle can reference it safely
+        create("release") {
+            if (!releaseStoreFileProp.isNullOrBlank()) {
+                // storeFile expects a File
+                storeFile = File(releaseStoreFileProp)
+            }
+            if (!releaseStorePasswordProp.isNullOrBlank()) {
+                storePassword = releaseStorePasswordProp
+            }
+            if (!releaseKeyAliasProp.isNullOrBlank()) {
+                keyAlias = releaseKeyAliasProp
+            }
+            if (!releaseKeyPasswordProp.isNullOrBlank()) {
+                keyPassword = releaseKeyPasswordProp
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -48,6 +75,8 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+
 }
 
 dependencies {
@@ -64,8 +93,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
+    implementation("com.google.android.material:material:1.9.0")
+
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- res/values/themes.xml -->
 <resources>
-
-    <style name="Theme.MinimalistLauncher" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MinimalistLauncher" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- your colors and theme attributes -->
+    </style>
 </resources>

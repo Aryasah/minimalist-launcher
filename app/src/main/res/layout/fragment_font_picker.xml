@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/font_picker_root"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Built-in fonts horizontal list -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Built-in fonts"
+        style="@style/TextAppearance.MaterialComponents.Subtitle1" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/builtin_fonts_recycler"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:layout_marginTop="8dp" />
+
+    <!-- Choose from file -->
+    <Button
+        android:id="@+id/btn_choose_file"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Choose font file (.ttf/.otf)"
+        android:layout_marginTop="12dp" />
+
+    <!-- Preview -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Preview"
+        android:layout_marginTop="16dp"/>
+
+    <EditText
+        android:id="@+id/edit_preview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minLines="2"
+        android:text="The quick brown fox jumps over the lazy dog"
+        android:layout_marginTop="8dp"/>
+
+    <!-- Action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_apply"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Apply" />
+
+        <Button
+            android:id="@+id/btn_cancel"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Cancel" />
+    </LinearLayout>
+</LinearLayout>

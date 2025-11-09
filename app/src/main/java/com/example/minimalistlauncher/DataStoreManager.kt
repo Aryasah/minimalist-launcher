@@ -18,8 +18,11 @@ object Keys {
     val WHITELIST = stringPreferencesKey("focus_whitelist")          // "pkg1|pkg2|..."
     val HOME_APPS = stringPreferencesKey("home_apps_ordered")       // "pkgA|pkgB|..."
     val ICON_PACK = stringPreferencesKey("icon_pack_package")       // package name or null
-}
 
+    // Font persistence keys (new)
+    val FONT_TYPE = stringPreferencesKey("launcher_font_type")      // "res"|"uri"|"pkg"
+    val FONT_VALUE = stringPreferencesKey("launcher_font_value")    // resKey or uri string or "pkg:fontResName"
+}
 class DataStoreManager(private val context: Context) {
 
     private fun parseStringOrSet(raw: Any?): Set<String> {
@@ -131,4 +134,39 @@ class DataStoreManager(private val context: Context) {
         Log.d(TAG, "getSelectedIconPackOnce -> $value")
         return value
     }
+
+    // --------------------
+    // Font storage helpers (new)
+    // --------------------
+
+    /** Flow: current font type (res/uri/pkg) or null */
+    val launcherFontTypeFlow: Flow<String?> = context.dataStore.data.map { prefs -> prefs[Keys.FONT_TYPE] }
+
+    /** Flow: current font value (resKey or uri string or pkg:fontResName) or null */
+    val launcherFontValueFlow: Flow<String?> = context.dataStore.data.map { prefs -> prefs[Keys.FONT_VALUE] }
+
+    /** Atomically set font selection (type + value) */
+    suspend fun setLauncherFont(type: String, value: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.FONT_TYPE] = type
+            prefs[Keys.FONT_VALUE] = value
+        }
+        Log.d(TAG, "setLauncherFont -> type=$type value=$value")
+    }
+
+    /** Clear stored launcher font */
+    suspend fun clearLauncherFont() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(Keys.FONT_TYPE)
+            prefs.remove(Keys.FONT_VALUE)
+        }
+        Log.d(TAG, "clearLauncherFont -> cleared")
+    }
+
+    /** Convenience: read both values once (useful on startup) */
+    suspend fun getLauncherFontOnce(): Pair<String?, String?> {
+        val prefs = context.dataStore.data.first()
+        return prefs[Keys.FONT_TYPE] to prefs[Keys.FONT_VALUE]
+    }
 }
+
