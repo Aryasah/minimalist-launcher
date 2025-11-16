@@ -37,12 +37,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import com.example.minimalistlauncher.FontManager
+import kotlin.coroutines.coroutineContext
 
 private const val SETTINGS_TAG = "SettingsScreen"
 
@@ -62,8 +65,13 @@ fun SettingsScreen(
 
     var showFontScreen by remember { mutableStateOf(false) }
 
+    // Observe persisted state
+    val shakeEnabled by store.shakeEnabledFlow.collectAsState(initial = false)
+
     // compact paddings and smaller text sizes
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .background(MaterialTheme.colorScheme.background)) {
         CommonTopBar(
             title = "Settings",
             onClose = onClose,
@@ -76,9 +84,6 @@ fun SettingsScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-//            item {
-//                SectionHeader("Appearance")
-//            }
 
             item {
                 FontCardRow(onOpenFontScreen = { showFontScreen = true })
@@ -92,7 +97,7 @@ fun SettingsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),) {
                         FontSizeSliderRow(openFontScreen = { showFontScreen = true })
                     }
                 }
@@ -107,7 +112,7 @@ fun SettingsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),) {
                         IconPackPickerRow(onPick = { pkg ->
                             Log.d(SETTINGS_TAG, "Icon pack chosen: $pkg")
                         }, currentPack = selectedIconPack)
@@ -118,7 +123,7 @@ fun SettingsScreen(
             // show original toggle + preview (compact row)
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -146,36 +151,101 @@ fun SettingsScreen(
 
             // Home management (compact)
             item {
-                SectionHeader("Home")
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = onManageHomeApps,
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface)
+                SectionHeader("Actions")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Manage Home Apps", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            coroutineScope.launch { store.setHomeApps(emptyList()) }
-                        },
-                        modifier = Modifier.widthIn(min = 120.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
-                    ) {
-                        Text("Clear", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = "Shake flashlight",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        // scaled-down switch to align visually with small text
+                        Switch(
+                            checked = shakeEnabled,
+                            onCheckedChange = { enabled ->
+                                coroutineScope.launch { store.setShakeEnabled(enabled) }
+                            },
+                            modifier = Modifier.scale(0.75f),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            )
+                        )
                     }
                 }
+//                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+//                    Button(
+//                        onClick = onManageHomeApps,
+//                        modifier = Modifier.weight(1f),
+//                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+//                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface)
+//                    ) {
+//                        Text("Manage Home Apps", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
+//                    }
+//                    OutlinedButton(
+//                        onClick = {
+//                            coroutineScope.launch { store.setHomeApps(emptyList()) }
+//                        },
+//                        modifier = Modifier.widthIn(min = 120.dp),
+//                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+//                    ) {
+//                        Text("Clear", style = MaterialTheme.typography.bodyMedium)
+//                    }
+//                }
             }
 
             // About / footer (minimal)
             item {
                 SectionHeader("About")
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    Text("Minimalist Launcher — simple, minimal home screen", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall)
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        text = "Minimalist Launcher — simple, minimal home screen",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Made with ",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Favorite, // ❤️ icon
+                            contentDescription = "Heart",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = " by Arya Sah",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
+
 
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
@@ -190,7 +260,9 @@ fun SettingsScreen(
     }
 
     if (showFontScreen) {
-        Surface(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
+        Surface(modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface), tonalElevation = 8.dp) {
             FontScreen(onClose = { showFontScreen = false })
         }
     }
@@ -360,7 +432,7 @@ fun IconPackPickerRow(onPick: (String?) -> Unit, currentPack: String?) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(niceName, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -452,7 +524,9 @@ fun FontCardRow(onOpenFontScreen: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f).padding(vertical = 4.dp)) {
+            Column(modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 4.dp)) {
                 Text(labelFor(currentType, currentValue), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
             }
 
@@ -543,7 +617,9 @@ fun FontSizeSliderRow(openFontScreen: () -> Unit, modifier: Modifier = Modifier)
         }
 
         Spacer(modifier = Modifier.height(6.dp))
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), )  {
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), )  {
             OutlinedButton(
                 onClick = {
                     // Reset preview to default (does not apply)

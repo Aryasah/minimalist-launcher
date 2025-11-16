@@ -35,6 +35,7 @@ object Keys {
     val FOCUS_END_ELAPSED_MS = longPreferencesKey("focus_end_elapsed_ms") // monotonic end time (SystemClock.elapsedRealtime())
     val FOCUS_PAUSED = booleanPreferencesKey("focus_paused")
     val FOCUS_REMAINING_SEC = intPreferencesKey("focus_remaining_sec")
+    val SHAKE_TOGGLE = booleanPreferencesKey("shake_flashlight_enabled")
 }
 class DataStoreManager(private val context: Context) {
 
@@ -287,6 +288,20 @@ class DataStoreManager(private val context: Context) {
             if (sec == null) prefs.remove(Keys.FOCUS_REMAINING_SEC) else prefs[Keys.FOCUS_REMAINING_SEC] = sec
         }
     }
+
+    val shakeEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[Keys.SHAKE_TOGGLE] ?: false }
+
+    suspend fun setShakeEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.SHAKE_TOGGLE] = enabled
+        }
+    }
+
+    suspend fun getShakeEnabledOnce(): Boolean {
+        return context.dataStore.data.first()[Keys.SHAKE_TOGGLE] ?: false
+    }
+
 
 }
 

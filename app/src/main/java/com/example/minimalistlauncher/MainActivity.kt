@@ -47,6 +47,9 @@ import com.example.minimalistlauncher.ui.PlaceholderIcon
 import com.example.minimalistlauncher.ui.theme.MinimalLauncherTheme
 import android.widget.FrameLayout
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.foundation.layout.Arrangement
@@ -57,10 +60,20 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.ui.text.font.FontFamily
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.minimalistlauncher.ui.FocusScreen
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material.icons.filled.LightMode
 
 data class AppInfo(val label: String, val pkg: String, val iconBitmap: ImageBitmap? = null)
 
@@ -71,9 +84,37 @@ class MainActivity : ComponentActivity() {
     private var currentAppWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
     private var hostView: AppWidgetHostView? = null
     private val APPWIDGET_HOST_ID = 1024
+    private var shakeManager: ShakeFlashlightManager? = null
+    private lateinit var cameraPermissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
+    private var cameraPermissionGranted = false
+    private var torchState by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        cameraPermissionLauncher = registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            cameraPermissionGranted = granted
+            if (granted) {
+                // start shake only if user enabled the feature (use DataStore)
+                lifecycleScope.launchWhenCreated {
+                    val ds = DataStoreManager(this@MainActivity)
+                    val enabled = ds.getShakeEnabledOnce() // helper we'll add below
+                    if (enabled) shakeManager?.start()
+                }
+            } else {
+                // optional: show a short hint to the user
+                Log.d("MainActivity", "Camera permission denied; shake flashlight disabled")
+            }
+        }
+
+        shakeManager = ShakeFlashlightManager(this) { isOn ->
+            // ensure update happens on the UI thread so Compose sees it
+            runOnUiThread {
+                torchState = isOn
+            }
+            Log.d("MainActivity","torch toggled=$isOn")
+        }
 
         // Attempt to reapply persisted fonts. For "res" selections we map keys -> R.font.* here.
         // mapping for bundled fonts:
@@ -100,12 +141,11 @@ class MainActivity : ComponentActivity() {
         // in MainActivity.onCreate
         val ds = DataStoreManager(this)
 
-        lifecycleScope.launchWhenCreated {
+        lifecycleScope.launch {
             val ds = DataStoreManager(this@MainActivity)
             val (type, value) = ds.getLauncherFontOnce()
             when (type) {
                 "res" -> {
-                    // map value to resId (value is the key e.g., "inter")
                     val resId = when (value) {
                         "inter" -> R.font.inter
                         "poppins" -> R.font.poppins
@@ -204,11 +244,23 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                         }
+
                     }
 
-                    // --- inside Box(modifier = ...) in setContent, replace the Column(...) block ---
+                    // small torch indicator at bottom-end (keeps visible outline even when off)
+                    Box(
+                        modifier = Modifier.padding(12.dp).align(Alignment.TopEnd)
+                    ) {
+                        val fill = if (torchState) Color(0xFFFFD54F) else Color.Transparent
+                        Icon(imageVector = Icons.Default.FlashOn,
+                            tint = fill,
+                            contentDescription = "Torch", modifier = Modifier.size(18.dp)
+                        )
+                    }
 
-// create the actions you want
+
+
+                    // create the actions you want
                     val radialActions = listOf(
                         RadialAction(
                             id = "focus",
@@ -240,7 +292,7 @@ class MainActivity : ComponentActivity() {
                         )
                     )
 
-// place radial menu at bottom-end
+                    // place radial menu at bottom-end
                     Box(modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(18.dp)) {
@@ -255,6 +307,7 @@ class MainActivity : ComponentActivity() {
                             onOpenedChanged = { open -> Log.d("RadialMenu", "open=$open") }
                         )
                     }
+
 
 
                     if (showDrawer) {
@@ -300,6 +353,33 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            val ds = DataStoreManager(this@MainActivity)
+            val enabled = ds.getShakeEnabledOnce() // suspend helper in DataStoreManager
+            if (enabled) {
+                if (ContextCompat.checkSelfPermission(this@MainActivity, android.Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED) {
+                    cameraPermissionGranted = true
+                    shakeManager?.start()
+                } else {
+                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                }
+            } else {
+                // ensure stop
+                shakeManager?.stop()
+                torchState = false
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // stop to avoid listening while paused (conserve battery)
+        shakeManager?.stop()
     }
 
     override fun onStart() {
@@ -363,6 +443,28 @@ class MainActivity : ComponentActivity() {
     color = Color.White,
     fontFamily = FontManager.composeFontFamily // this updates reactively
 )
+        }
+    }
+}
+
+
+@Composable
+fun RequestCameraPermissionIfNeeded(onGranted: ()->Unit) {
+    val context = LocalContext.current
+    val permission = android.Manifest.permission.CAMERA
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) onGranted()
+        else {
+            // optionally open app settings
+            Toast.makeText(context, "Camera permission required for flashlight shake", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+            onGranted()
+        } else {
+            launcher.launch(permission)
         }
     }
 }
